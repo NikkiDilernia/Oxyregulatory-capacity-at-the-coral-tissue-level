@@ -3,7 +3,9 @@ Resolving oxyregulatory capacity at the coral tissue level under declining oxyge
 Nicole J. Dilernia1*, David J. Suggett1,2, Michael Kühl3, Mathieu Pernice1, Emma F. Camp1
 
 1Climate Change Cluster, University of Technology Sydney, Ultimo 2007, NSW, Australia
+
 2KAUST Coral Restoration Initiative (KCRI) and Division of Biological and Environmental Science and Engineering (BESE), King Abdullah University of Science and Technology, Thuwal, 23955, Saudi Arabia
+
 3Department of Biology, Marine Biological Section, University of Copenhagen, Strandpromenaden 5, 3000 Helsingør, Denmark
 
 *Corresponding author: Nicole J. Dilernia, Nicole.dilernia@uts.edu.au
