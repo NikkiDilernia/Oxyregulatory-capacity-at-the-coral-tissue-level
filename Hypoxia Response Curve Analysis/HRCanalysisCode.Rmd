@@ -1,0 +1,126 @@
+---
+title: "HRC analysis"
+author: "Nikki Dilernia"
+date: '2025-06-25'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# R Markdown
+
+# read in the files (Date, Time (HH:MM:SS), Time (s), DO) and setwd and directory for files 
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(openxlsx)
+library(drc)
+library(SciViews)
+library(gridExtra)
+
+# set working directory
+setwd(".../location")
+
+test<-read.csv("...file.csv",header=T)
+  colnames(test)
+
+# adjust time_seconds in file to start at 0
+test<- test %>% mutate(time_seconds = Time..s. - min(Time..s.))
+max(test$time_seconds)/60
+
+# Set directory & state file name pattern
+directory<-".../location"
+file_pattern <- "_HRC"
+
+# List all files in the directory that match the pattern
+files <- list.files(pattern = file_pattern, full.names = TRUE)
+  view(files)
+```
+
+# Calculate VO2 for each coral sample & plot HRC
+```{r}
+# ---- 1. Read in specific HRC file and define constants ----
+test <- read.csv("...file_HRC.csv", header = TRUE)
+  str(test)
+
+# Define constants for this specific coral sample (control, vol, SA)
+O2_blank <- 0.05          # Water blank in mg/L 
+vessel_volume <- 0.45     # Vessel volume after displacement in L 
+surface_area <- 85.25     # Coral surface area in cm² 
+
+# ---- 2. Preprocess: time and O2 conversion (convert % to mg O2/L) ----
+test <- test %>%
+  mutate(
+    time_seconds = Time..s. - min(Time..s.),
+    O2 = (DO / 100) * 6.53  # (use O2 conversion table, i.e., 100% DO ≃ 6.53mg/L @ 27°C, 35 ppt)
+  )
+
+test$time_minutes <- test$time_seconds / 60  # Optional readability
+
+# ---- 3. Subset data at 5-minute intervals ----
+interval <- 300  # i.e., 5 mins in seconds
+max_time <- max(test$time_seconds)
+
+target_intervals <- seq(0, max_time, by = interval)
+
+hrc <- do.call(rbind, lapply(target_intervals, function(target) {
+  test[which.min(abs(test$time_seconds - target)), ]
+}))
+
+# ---- 4. Calculate blank-corrected and surface-area/vol-normalized VO2 ----
+hrc2 <- hrc %>%
+  mutate(O2_corrected = O2 - O2_blank,
+    VO2 = c(NA,-diff(O2_corrected) / diff(time_seconds / 60) * 60 * vessel_volume / surface_area))
+
+# ---- 5. Filter to valid range ----
+hrc2 <- filter(hrc2, DO <= 100, DO > 0.5)
+
+# Export "hrc2" to .xlsx 
+write.xlsx(hrc2, "...file_HRC.xlsx", rowNames = FALSE)
+
+# ---- 6. Plot VO2 vs DO ----
+ggplot(hrc2, aes(x = DO, y = VO2)) +
+  geom_point()
+```
+
+# Remove a specific row with outlier, if needed
+```{r}
+# Remove a specific row (e.g., to remove row 5, "-5")
+hrc2 <- hrc2[-1, ]
+```
+
+# Fit Michaelis-Menten model to HRC, calculate regulation curve, and extract Pcmax & Tpos
+```{r}
+MichaelisModel <- drm(VO2~DO, data = hrc2, fct = MM.2())
+MMLine <- data.frame(DO = seq(0, max(hrc2$DO), length.out = 100)) 
+MMLine$VO2 <- predict(MichaelisModel, newdata = MMLine)
+
+# estimates of coefficients are pulled directly from model
+A=MichaelisModel$coefficients[[1]] 
+H=MichaelisModel$coefficients[[2]]
+
+results <- data.frame(PO2 = numeric(0), Rho = numeric(0))
+
+# Calculate values for pO2 from 1 to 100 and save to results df
+for (DO in seq(0,max(hrc2$DO),length.out=200)) {
+  Rho <- A * (DO / (H + DO)^2)
+  results <- rbind(results, data.frame(DO = DO, Rho = Rho))
+}
+
+# Summary of results
+print(results)
+Tpos=A*((H/(H+100))+ln(H+100)-1-ln(H))
+Tpos
+
+Pcmax=results$DO[which.max(results$Rho)]
+Pcmax
+
+ggplot(hrc2,aes(x=DO,y=VO2))+
+  geom_point()+
+  geom_line(data=MMLine)
+ggsave("...file_HRC.png", width=10, height=7)
+```
+
