@@ -1,3 +1,5 @@
+*IN REVIEW*
+
 Resolving oxyregulatory capacity at the coral tissue level under declining oxygen conditions
 
 Nicole J. Dilernia1*, David J. Suggett1,2, Michael Kühl3, Mathieu Pernice1, Emma F. Camp1
